@@ -23,6 +23,8 @@ class Status(str, Enum):
 TRANSITIONS: dict[tuple[Status, str], Status] = {
     (Status.PENDING, "ocr_succeeded"): Status.OCR_DONE,
     (Status.PENDING, "ocr_failed"): Status.OCR_FAILED,
+    # Processing a batch again re-queues transient failures only; ocr.start() skips unreadable scans.
+    (Status.OCR_FAILED, "ocr_retry"): Status.PENDING,
     (Status.OCR_DONE, "stage1_approve"): Status.STAGE1_APPROVED,
     (Status.OCR_DONE, "stage1_reject"): Status.STAGE1_REJECTED,
     (Status.STAGE1_APPROVED, "stage2_approve"): Status.STAGE2_APPROVED,

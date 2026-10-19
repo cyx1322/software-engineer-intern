@@ -1,4 +1,4 @@
-"""Batch import, batch summary, and case listing endpoints."""
+"""Batch endpoints: import, summary, case listing, OCR processing, and export."""
 from typing import Annotated
 
 from bson import ObjectId
@@ -6,8 +6,10 @@ from fastapi import APIRouter, HTTPException, Query, UploadFile
 from pymongo import ASCENDING
 from pymongo.database import Database
 
+from app import ocr
 from app.db import DB, get_or_404, to_api, utcnow
-from app.schemas import BatchOut, CasePage
+from app.export import NothingToExport, create_export, deliver
+from app.schemas import BatchOut, CasePage, ExportOut, ProcessOut
 from app.state_machine import Status
 from app.validation import CsvFormatError, validate_csv
 
@@ -73,10 +75,49 @@ def list_cases(
     }
 
 
+@router.post("/{batch_id}/process", response_model=ProcessOut, status_code=202)
+def process_batch(batch_id: str, db: DB):
+    """Queue the batch's pending cases for OCR and return immediately.
+
+    Poll GET /api/batches/{id} for progress. Calling this again after a restart
+    picks up cases that were still pending and retries transient OCR failures.
+    """
+    batch = get_or_404(db.batches, batch_id, "batch")
+    queued = ocr.start(db, batch["_id"])
+    return {**_batch_out(db, batch), "queued": queued}
+
+
+@router.post(
+    "/{batch_id}/export",
+    response_model=ExportOut,
+    status_code=201,
+    responses={409: {"description": "No stage2_approved cases are waiting for export"}},
+)
+def export_batch(batch_id: str, db: DB):
+    """Export every stage2_approved case to a new CSV and deliver it to account opening.
+
+    The response is returned after delivery finishes. If every retry fails,
+    the export is still created with delivery.status `failed`, and
+    POST /api/exports/{id}/deliver retries it with the same key.
+    """
+    batch = get_or_404(db.batches, batch_id, "batch")
+    try:
+        export = create_export(db, batch["_id"])
+    except NothingToExport as exc:
+        raise HTTPException(409, str(exc)) from None
+    return to_api(deliver(db, export))
+
+
 def _batch_out(db: Database, batch: dict) -> dict:
-    """Batch document plus a count for every status, including zeros."""
+    """Batch document plus a count for every status (zeros included), OCR progress, and exports."""
     counts = {status.value: 0 for status in Status}
     pipeline = [{"$match": {"batch_id": batch["_id"]}}, {"$group": {"_id": "$status", "count": {"$sum": 1}}}]
     for group in db.cases.aggregate(pipeline):
         counts[group["_id"]] = group["count"]
-    return {**to_api(batch), "status_counts": counts}
+    exports = db.exports.find({"batch_id": batch["_id"]}).sort("created_at", ASCENDING)
+    return {
+        **to_api(batch),
+        "status_counts": counts,
+        "processing": ocr.is_processing(batch["_id"]),
+        "exports": [to_api(export) for export in exports],
+    }

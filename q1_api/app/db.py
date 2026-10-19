@@ -2,7 +2,6 @@
 
 Collections and fields are documented in q1_api/README.md ("MongoDB schema").
 """
-import os
 from datetime import datetime, timezone
 from functools import lru_cache
 from typing import Annotated
@@ -13,18 +12,15 @@ from pymongo import ASCENDING, MongoClient, ReturnDocument
 from pymongo.collection import Collection
 from pymongo.database import Database
 
+from app import config
 from app.state_machine import InvalidTransition, Status, next_status
 
 
 @lru_cache
 def get_db() -> Database:
     """Connect on first use."""
-    client = MongoClient(
-        os.getenv("MONGO_URL", "mongodb://localhost:27017"),
-        serverSelectionTimeoutMS=5000,
-        tz_aware=True,
-    )
-    db = client[os.getenv("MONGO_DB", "identity_verification")]
+    client = MongoClient(config.MONGO_URL, serverSelectionTimeoutMS=5000, tz_aware=True)
+    db = client[config.MONGO_DB]
     init_db(db)
     return db
 
@@ -39,6 +35,9 @@ def init_db(db: Database) -> None:
     # Case listing in file order, with and without a status filter; also status counts.
     db.cases.create_index([("batch_id", ASCENDING), ("row", ASCENDING)])
     db.cases.create_index([("batch_id", ASCENDING), ("status", ASCENDING), ("row", ASCENDING)])
+    # Building an export reads back the cases it claimed.
+    db.cases.create_index([("export_id", ASCENDING)], sparse=True)
+    db.exports.create_index([("batch_id", ASCENDING), ("created_at", ASCENDING)])
 
 
 def utcnow() -> datetime:
@@ -59,18 +58,19 @@ def to_api(doc: dict) -> dict:
     return {"id": str(doc["_id"]), **fields}
 
 
-def transition_case(db: Database, case: dict, event: str) -> dict:
+def transition_case(db: Database, case: dict, event: str, fields: dict | None = None) -> dict:
     """Apply a state-machine event to a case and return the updated document.
 
-    The update only matches if the case still has the status that was checked,
-    so two concurrent requests cannot both move the same case: the second one
-    finds nothing to update and gets InvalidTransition (HTTP 409).
+    `fields` (for example OCR results) are written in the same update as the
+    new status. The update only matches if the case still has the status that
+    was checked, so two concurrent requests cannot both move the same case:
+    the second one finds nothing to update and gets InvalidTransition (HTTP 409).
     """
     current = Status(case["status"])
     new = next_status(current, event)
     updated = db.cases.find_one_and_update(
         {"_id": case["_id"], "status": current.value},
-        {"$set": {"status": new.value, "updated_at": utcnow()}},
+        {"$set": {**(fields or {}), "status": new.value, "updated_at": utcnow()}},
         return_document=ReturnDocument.AFTER,
     )
     if updated is None:

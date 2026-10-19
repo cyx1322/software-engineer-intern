@@ -9,11 +9,13 @@ import os
 import uuid
 from pathlib import Path
 
+import httpx
 import mongomock
 import pymongo
 import pytest
 from fastapi.testclient import TestClient
 
+from app import config, export, ocr
 from app.db import get_db, init_db
 from app.main import app
 
@@ -51,3 +53,26 @@ def upload(client):
     def _upload(content: bytes, filename: str = "applications.csv"):
         return client.post("/api/batches", files={"file": (filename, content, "text/csv")})
     return _upload
+
+
+@pytest.fixture(autouse=True)
+def no_retry_delay(monkeypatch):
+    """Tests still retry, but without the backoff wait."""
+    monkeypatch.setattr(config, "RETRY_BACKOFF_BASE_SECONDS", 0)
+
+
+def _fake_service(monkeypatch, module):
+    """Return a function that routes `module.http` to a handler: httpx.Request -> httpx.Response."""
+    def install(handler):
+        monkeypatch.setattr(module, "http", httpx.Client(transport=httpx.MockTransport(handler), timeout=5))
+    return install
+
+
+@pytest.fixture
+def fake_ocr(monkeypatch):
+    return _fake_service(monkeypatch, ocr)
+
+
+@pytest.fixture
+def fake_onboarding(monkeypatch):
+    return _fake_service(monkeypatch, export)

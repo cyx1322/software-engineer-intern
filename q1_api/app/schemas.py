@@ -18,6 +18,40 @@ class RejectedRow(BaseModel):
     reasons: list[str]
 
 
+class OcrFields(BaseModel):
+    """Fields from a successful OCR response, stored as returned."""
+    id_number: str
+    full_name: str
+    dob: str
+    issue_date: str
+    confidence: float
+
+
+class OcrError(BaseModel):
+    reason: str  # for a 4xx, the OCR service's own message
+    retryable: bool  # True when retries ran out; processing the batch again re-queues the case
+    attempts: int
+
+
+class Delivery(BaseModel):
+    status: Literal["pending", "delivered", "failed"]
+    attempts: int
+    receipt: dict | None  # the account-opening service's receipt, as returned
+    error: str | None
+    updated_at: datetime | None = None
+
+
+class ExportOut(BaseModel):
+    id: str
+    batch_id: str
+    filename: str
+    idempotency_key: str
+    created_at: datetime
+    case_refs: list[str]
+    sha256: str
+    delivery: Delivery
+
+
 class BatchOut(BaseModel):
     id: str
     filename: str | None
@@ -27,6 +61,12 @@ class BatchOut(BaseModel):
     rejected_count: int
     rejected_rows: list[RejectedRow]
     status_counts: dict[str, int]
+    processing: bool  # OCR work for this batch is queued or running
+    exports: list[ExportOut]
+
+
+class ProcessOut(BatchOut):
+    queued: int
 
 
 class CaseOut(BaseModel):
@@ -40,6 +80,9 @@ class CaseOut(BaseModel):
     issue_date: str
     image_ref: str
     status: Status
+    ocr: OcrFields | None = None
+    ocr_error: OcrError | None = None
+    export_id: str | None = None
     created_at: datetime
     updated_at: datetime
 
