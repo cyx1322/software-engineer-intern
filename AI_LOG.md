@@ -1,8 +1,6 @@
 # AI interaction record
 
-Record interactions that influenced architecture, implementation decisions, or generated code. Include prompt excerpts, conversation links, or exported records. Routine lookups do not require entries.
-
-Complete one entry per relevant interaction using the template below. Replace bracketed prompts and add entries as needed. If AI did not materially influence the code, state that and remove the blank entry.
+Interactions with AI tools that influenced architecture, implementation decisions, or code. Prompts are paraphrased.
 
 ## Interaction 1: Module 1 core API
 

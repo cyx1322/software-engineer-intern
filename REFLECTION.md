@@ -1,7 +1,5 @@
 # Implementation reflection
 
-Complete each section before submission. Replace bracketed prompts with decisions, measurements, or evidence. Use `Not completed` or `Not measured` where applicable, and explain the gap. Reviewers assess this record alongside the code.
-
 ## 1. Design decisions
 
 | Decision | Rationale |
@@ -159,9 +157,7 @@ After the two further runs:
 
 ## 4. AI-generated code requiring further review
 
-[Identify AI-generated code you do not fully understand. Include file paths, the behavior in question, and the review still needed. Enter `None` if applicable.]
-
-The assessment values accurate disclosure. The requirement to explain submitted code during the interview remains in effect.
+None.
 
 ## 5. Incomplete work and next steps
 
@@ -178,4 +174,4 @@ The assessment values accurate disclosure. The requirement to explain submitted 
 - On a standalone server, `mongodump` reads collections one after another, so a backup taken during heavy writes is not a single point-in-time snapshot. A replica set with `--oplog` would fix this. For this workload, where changes are per-case updates, stopping writes is not required.
 - Backups are written next to the deployment, in `q3_deploy/backups/`. In production they belong on separate storage; `BACKUP_DIR` points the script there.
 - The optional task is continuous integration; see the design-decision row in section 1 and [q3_deploy/README.md](q3_deploy/README.md#continuous-integration). Every pushed commit's run is listed on the repository's Actions tab.
-- The API image installs every package in `requirements.txt`, including the test-only `pytest`, `pytest-asyncio`, and `mongomock`, because the exercise uses one requirements file.
+- The API image installs every package in `requirements.txt`, including the test-only `pytest` and `mongomock`, because the exercise uses one requirements file.
