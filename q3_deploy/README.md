@@ -68,6 +68,19 @@ There are no fixed sleeps. nginx looks up both upstream addresses once, when it 
 | `proxy_connect_timeout` (`/api/`) | `2s` | Connections to a stopped `api` container hang instead of being refused. Under the 60 s default, clients waited 60 s for a `504` during the restore test; with `2s` they get it in 2 s. Containers on the same network connect in well under a millisecond. |
 | `proxy_read_timeout`, `proxy_connect_timeout` (`/ocr/`) | `5s`, `2s` | The same limits as the API's OCR client. A hung parse returns `504` after 5 s, instead of holding the client for the mock's 600 s delay. |
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and on no other event. Each push runs two jobs:
+
+| Job | Runs when | Steps |
+|---|---|---|
+| `test` | every push to `main` | On Python 3.10 and 3.12: `pip install -r requirements.txt`, then `python -m pytest q1_api/` twice. The first run uses mongomock. The second sets `TEST_MONGO_URL` to a `mongo:8` service container. |
+| `build` | only after every `test` job succeeds (`needs: test`) | `cp .env.example .env`, then `docker compose build` in `q3_deploy/`. It logs in to GHCR with `GITHUB_TOKEN` and pushes `ghcr.io/<owner>/<repo>/api` tagged with the commit SHA and `latest`. |
+
+A package published with `GITHUB_TOKEN` inherits the repository's visibility, so a public fork publishes a public image.
+
+Checked locally before the first push: actionlint reported no problems, and `act --list` showed `test` then `build`. The four test runs (two Python versions, each on mongomock and MongoDB 8) all passed. `docker compose build` from a clean checkout produced `q3_deploy-api`, and the lowercase image name resolved as expected in bash 5.
+
 ## Verification
 
 These checks were run on 2026-10-19, from a copy of the repository containing only tracked files, after `cp .env.example .env`. The engine was Docker 27.4 with Compose 2.31.

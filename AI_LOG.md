@@ -86,3 +86,16 @@ Claude generated:
 Claude tested each runbook procedure against a running stack: retention over nine backups, a backup with the database stopped, a restore, an OCR outage and its recovery, and log lookups. Testing the restore exposed two nginx problems, and Claude changed:
 - A stopped API made clients wait 60 s for a `504`. Claude added `proxy_connect_timeout 2s` for `/api/`.
 - nginx looks up upstream addresses only once. Claude added `restart: true` to its `depends_on`, so Compose restarts nginx when it restarts or recreates `api` or `mock_ocr`.
+
+## Interaction 5: Continuous integration (optional task)
+
+| Field | Description |
+|---|---|
+| Tool or model | Claude Code (Claude Opus 5.5) |
+| Prompt or record | I asked Claude to add continuous integration for the optional task. It runs on every push to `main`, a decision to state clearly, and runs the full backend test suite. Then it builds the Docker images and pushes to GitHub Container Registry, and the build runs only if every test succeeds. |
+| Affected files | `.github/workflows/ci.yml`, `q3_deploy/README.md`, `REFLECTION.md` |
+
+### Adopted output
+
+Claude generated the workflow. A `test` job runs on Python 3.10 and 3.12, each on mongomock and then on a MongoDB 8 service container. A `build` job declares `needs: test`, runs `docker compose build`, and pushes the API image to GHCR under the commit SHA and `latest`, using `GITHUB_TOKEN`. Claude checked the current action versions, linted the workflow with actionlint, and ran each job's commands locally before pushing.
+
