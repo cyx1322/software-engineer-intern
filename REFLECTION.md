@@ -6,9 +6,9 @@ Complete each section before submission. Replace bracketed prompts with decision
 
 | Decision | Rationale |
 |---|---|
-| Database | [Name the database and explain the choice.] |
+| Database | MongoDB 8 through `pymongo`, as the exercise recommends. A case is one document that gains OCR fields in Module 2, so a schemaless document store fits without migrations. `find_one_and_update` gives an atomic compare-and-set on `status`, which is all the review workflow needs, so a standalone server works without multi-document transactions. Tests use `mongomock` so they pass without a server, and the same suite runs against real MongoDB with `TEST_MONGO_URL`. The schema is in [q1_api/README.md](q1_api/README.md#mongodb-schema). |
 | Background OCR processing | [Describe how work is scheduled and how interrupted cases are processed again. Explain the approach.] |
-| Review state machine | [Identify the module that owns transition rules and explain the organization.] |
+| Review state machine | `q1_api/app/state_machine.py` owns the rules. `TRANSITIONS` maps `(current status, event)` to the next status, and `next_status()` is the only lookup. A status with no outgoing entry is terminal, so rejected cases cannot reach stage 2 or export. `db.transition_case()` applies a transition with an update filtered on the status it checked, so a concurrent second decision gets `409` instead of overwriting the first. Adding a workflow step, such as returning a case to stage 1, means a new table entry and an endpoint that sends the new event. |
 | Delivery idempotency key | [Identify the source of the key. Explain why retries reuse it and different exports receive different keys.] |
 
 ## 2. Mock observations and retry configuration

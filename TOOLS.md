@@ -4,7 +4,7 @@ Complete the table before submission. Include AI assistants, search engines, doc
 
 | Tool or source | Use | Files materially influenced |
 |---|---|---|
-| [AI assistant name] | [Task and contribution] | [File paths] |
+| Claude Code (Claude Opus 5.5) | Generated the Module 1 API, tests, and schema documentation from my design decisions. See [AI_LOG.md](AI_LOG.md), interaction 1. | `q1_api/app/`, `q1_api/tests/`, `q1_api/README.md` |
 | [Documentation, search engine, or open-source source] | [Information or code used] | [File paths, or `Not applicable`] |
 
 Record AI interactions that influenced design or generated code in [AI_LOG.md](AI_LOG.md).

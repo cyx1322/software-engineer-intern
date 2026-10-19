@@ -1,12 +1,14 @@
 """Securities account identity verification: API entry point.
 
 Keep the ASGI entry point importable as `app.main:app` from q1_api/.
-Organize application modules within this package. The repository README
-defines fixed paths and names in section 2.
 """
 from fastapi import FastAPI
 
+from app import batches, cases
+
 app = FastAPI(title="Securities Account Identity Verification")
+app.include_router(batches.router)
+app.include_router(cases.router)
 
 
 @app.get("/api/health")
