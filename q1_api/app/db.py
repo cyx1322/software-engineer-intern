@@ -38,6 +38,8 @@ def init_db(db: Database) -> None:
     # Building an export reads back the cases it claimed.
     db.cases.create_index([("export_id", ASCENDING)], sparse=True)
     db.exports.create_index([("batch_id", ASCENDING), ("created_at", ASCENDING)])
+    # At most one batch per seed file, even if two API processes start at once.
+    db.batches.create_index([("seed_sha256", ASCENDING)], unique=True, sparse=True)
 
 
 def utcnow() -> datetime:

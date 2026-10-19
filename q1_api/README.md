@@ -6,7 +6,7 @@ The [Module 1 requirements](../README.md#3-module-1-core-api-35-points) define e
 
 | Module | Responsibility |
 |---|---|
-| `app/main.py` | FastAPI app and router registration |
+| `app/main.py` | FastAPI app, router registration, `/api/health` (liveness), `/api/ready` (readiness), and the startup seed import |
 | `app/batches.py` | `POST /api/batches`, `GET /api/batches/{id}`, `GET /api/batches/{id}/cases`, and the Module 2 `process` and `export` endpoints |
 | `app/cases.py` | `POST /api/cases/{id}/review` |
 | `app/exports.py` | Module 2: `POST /api/exports/{id}/deliver`, `GET /api/exports/{id}/file` |
@@ -138,6 +138,7 @@ One document per upload. It is written once and not changed afterwards. Per-stat
 | `accepted_count` | int | Rows imported as cases |
 | `rejected_count` | int | Rows not imported |
 | `rejected_rows` | array of objects | `{row: int, case_ref: string or null, reasons: [string]}` for each rejected row |
+| `seed_sha256` | string | Only on the batch imported from `SEED_CSV` at startup: the SHA-256 of that file. A restart finds the batch by this hash and does not import the file again. |
 
 ### `cases`
 
@@ -213,6 +214,7 @@ One document per export. The CSV is stored in the document, so the file is backe
 | `cases` | `{batch_id: 1, status: 1, row: 1}` | Listing with a status filter, per-status counts, and finding pending cases to process |
 | `cases` | `{export_id: 1}`, sparse | Reading back the cases an export claimed |
 | `exports` | `{batch_id: 1, created_at: 1}` | Listing a batch's exports |
+| `batches` | `{seed_sha256: 1}`, unique, sparse | At most one seed batch per seed file |
 
 ### Write order
 

@@ -6,6 +6,8 @@ import os
 
 MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 MONGO_DB = os.getenv("MONGO_DB", "identity_verification")
+SEED_CSV = os.getenv("SEED_CSV")  # imported once at startup when set; Compose sets it
+READY_TIMEOUT_SECONDS = float(os.getenv("READY_TIMEOUT_SECONDS", "2"))
 
 OCR_URL = os.getenv("OCR_URL", "http://localhost:9100/ocr/parse")
 OCR_TIMEOUT_SECONDS = float(os.getenv("OCR_TIMEOUT_SECONDS", "5"))

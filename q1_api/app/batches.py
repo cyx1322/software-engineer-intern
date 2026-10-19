@@ -1,4 +1,7 @@
 """Batch endpoints: import, summary, case listing, OCR processing, and export."""
+import hashlib
+import logging
+from pathlib import Path
 from typing import Annotated
 
 from bson import ObjectId
@@ -13,6 +16,7 @@ from app.schemas import BatchOut, CasePage, ExportOut, ProcessOut
 from app.state_machine import Status
 from app.validation import CsvFormatError, validate_csv
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/batches", tags=["batches"])
 
 
@@ -24,19 +28,25 @@ def create_batch(file: UploadFile, db: DB):
     listed in `rejected_rows` with the row number and every problem found.
     """
     try:
-        accepted, rejected = validate_csv(file.file.read())
+        batch = import_batch(db, file.file.read(), file.filename)
     except CsvFormatError as exc:
         raise HTTPException(422, f"{file.filename}: {exc}") from None
+    return _batch_out(db, batch)
 
+
+def import_batch(db: Database, content: bytes, filename: str | None, **fields) -> dict:
+    """Validate a CSV and store its batch and cases; `fields` are extra batch fields."""
+    accepted, rejected = validate_csv(content)
     now = utcnow()
     batch = {
         "_id": ObjectId(),
-        "filename": file.filename,
+        "filename": filename,
         "created_at": now,
         "total_rows": len(accepted) + len(rejected),
         "accepted_count": len(accepted),
         "rejected_count": len(rejected),
         "rejected_rows": rejected,
+        **fields,
     }
     if accepted:
         db.cases.insert_many([
@@ -45,7 +55,20 @@ def create_batch(file: UploadFile, db: DB):
         ])
     # Written after its cases, so a batch is never visible with only part of its cases.
     db.batches.insert_one(batch)
-    return _batch_out(db, batch)
+    return batch
+
+
+def seed_batch(db: Database, path: str) -> dict:
+    """Import the seed CSV once. A later start finds the batch by the file's hash and skips it."""
+    content = Path(path).read_bytes()
+    digest = hashlib.sha256(content).hexdigest()
+    existing = db.batches.find_one({"seed_sha256": digest})
+    if existing:
+        log.info("seed %s already imported as batch %s", path, existing["_id"])
+        return existing
+    batch = import_batch(db, content, Path(path).name, seed_sha256=digest)
+    log.info("seed %s imported as batch %s (%d cases)", path, batch["_id"], batch["accepted_count"])
+    return batch
 
 
 @router.get("/{batch_id}", response_model=BatchOut)

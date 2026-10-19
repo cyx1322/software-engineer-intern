@@ -117,7 +117,44 @@ Each retry received the original receipt with `"deduplicated": true`. One more e
 
 ### Backup retention
 
-[Include before-and-after file listings showing that only the seven most recent backups remain.]
+On 2026-10-19 I ran `bash scripts/backup.sh` nine times against the running Compose stack, at least one second apart. The listings show byte size and file name.
+
+Before, after the first seven runs (`ls -l backups/`):
+
+```text
+4445 idv-20261019T054914Z.archive.gz
+4456 idv-20261019T054915Z.archive.gz
+4454 idv-20261019T054916Z.archive.gz
+4454 idv-20261019T054918Z.archive.gz
+4458 idv-20261019T054919Z.archive.gz
+4445 idv-20261019T054920Z.archive.gz
+4451 idv-20261019T054921Z.archive.gz
+```
+
+The two further runs printed:
+
+```text
+backup written: backups/idv-20261019T054924Z.archive.gz (4455 bytes)
+removed old backup: backups/idv-20261019T054914Z.archive.gz
+backup written: backups/idv-20261019T054925Z.archive.gz (4455 bytes)
+removed old backup: backups/idv-20261019T054915Z.archive.gz
+```
+
+After the two further runs:
+
+```text
+4454 idv-20261019T054916Z.archive.gz
+4454 idv-20261019T054918Z.archive.gz
+4458 idv-20261019T054919Z.archive.gz
+4445 idv-20261019T054920Z.archive.gz
+4451 idv-20261019T054921Z.archive.gz
+4455 idv-20261019T054924Z.archive.gz
+4455 idv-20261019T054925Z.archive.gz
+```
+
+**Result.** Only the seven most recent backups remain, and the two oldest were deleted.
+- **A failed backup is not kept.** With `mongo` stopped, the script exited 1 and left no partial file, and the seven existing backups were untouched.
+- **The restore was tested** with the RUNBOOK procedure and the newest backup. Before it, the state at backup time was 2 batches, 86 cases, and 1 export, and a batch was uploaded after the backup. After it, the counts were back to 2 batches, 86 cases, and 1 export, and the later batch returned `404`.
 
 ## 4. AI-generated code requiring further review
 
@@ -134,4 +171,10 @@ The assessment values accurate disclosure. The requirement to explain submitted 
 - An export call with no new `stage2_approved` cases returns `409` instead of creating an empty file, so nothing empty is delivered.
 - With 6 attempts, about 0.08% of readable cases are expected to run out of retries, which is about one batch in 36. Those cases are recoverable by processing the batch again, but until then a clean run and an interrupted run can differ on them.
 
-**Module 3** is not started.
+**Module 3**
+
+- Q3.1, Q3.2, and Q3.3 are complete and tested from a clean copy of the repository. The results are in [q3_deploy/README.md](q3_deploy/README.md#verification).
+- On a standalone server, `mongodump` reads collections one after another, so a backup taken during heavy writes is not a single point-in-time snapshot. A replica set with `--oplog` would fix this. For this workload, where changes are per-case updates, stopping writes is not required.
+- Backups are written next to the deployment, in `q3_deploy/backups/`. In production they belong on separate storage; `BACKUP_DIR` points the script there.
+- The optional task is not attempted.
+- The API image installs every package in `requirements.txt`, including the test-only `pytest`, `pytest-asyncio`, and `mongomock`, because the exercise uses one requirements file.

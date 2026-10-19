@@ -14,6 +14,8 @@ The API reads its settings from environment variables when it starts. Set them i
 |---|---|---|
 | `MONGO_URL` | `mongodb://localhost:27017` | MongoDB connection string |
 | `MONGO_DB` | `identity_verification` | Database name |
+| `SEED_CSV` | unset | CSV imported once at startup as a seed batch. Compose sets it to the sample file. |
+| `READY_TIMEOUT_SECONDS` | `2` | Time limit for the MongoDB ping behind `/api/ready` |
 | `OCR_URL` | `http://localhost:9100/ocr/parse` | OCR parse endpoint |
 | `OCR_TIMEOUT_SECONDS` | `5` | Read timeout for one OCR attempt. The connect timeout is 2 seconds. |
 | `OCR_MAX_ATTEMPTS` | `6` | OCR attempts per case, including the first |
